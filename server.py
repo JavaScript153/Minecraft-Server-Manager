@@ -25,8 +25,9 @@ class MinecraftRealmsPro:
         self.server_process = None
         self.current_running_world = None
         self.headless = headless
-        self.world_name_val = "KUROiworld"
+        self.world_name_val = "KUROiworld" # デフォルトのワールド名
         
+        # データの読み込み
         self.worlds = self.load_world_list()
         self.auto_detect_existing_folders()
 
@@ -34,7 +35,16 @@ class MinecraftRealmsPro:
             self.setup_gui()
             self.refresh_world_list_ui()
         else:
-            print(">>> [INFO] Headless Mode: 24時間稼働を開始します...")
+            print(">>> [INFO] Headless Mode: サーバー自動起動を開始します...")
+
+    # --- GUI用便利メソッド ---
+    def add_label(self, parent, text):
+        lbl = ctk.CTkLabel(parent, text=text, font=("MS Gothic", 12, "bold"))
+        lbl.pack(anchor="w", pady=(10, 0))
+        return lbl
+
+    def add_entry(self, parent, default):
+        e = ctk.CTkEntry(parent); e.insert(0, default); e.pack(pady=5, fill="x"); return e
 
     def log(self, msg, tag="INFO"):
         print(f"[{tag}] {msg}", flush=True)
@@ -47,62 +57,60 @@ class MinecraftRealmsPro:
             self.root.after(0, _gui_log)
 
     def send_command(self, cmd):
-        if self.server_process and self.server_process.poll() is None:
+        if self.server_process:
             try:
-                # 徹底的に余計な文字を排除してコマンドを送信
-                clean_cmd = cmd.strip() + "\n"
-                self.server_process.stdin.write(clean_cmd)
+                self.server_process.stdin.write(cmd.strip() + "\n")
                 self.server_process.stdin.flush()
-                self.log(f"コマンド送信成功: {cmd.strip()}", "SYSTEM")
-            except Exception as e:
-                self.log(f"コマンド送信失敗: {e}", "ERROR")
+            except: pass
 
+    # --- サーバー起動ロジック ---
     def start_server(self):
         if self.server_process: return
+        # GUIなら入力された名前、Headlessならデフォルト名
         world = self.world_name_entry.get() if not self.headless else self.world_name_val
         
-        # propertiesファイル作成
-        props = {"level-name": world, "white-list": "true", "online-mode": "true", "spawn-protection": "0"}
+        # 設定ファイル作成 (常に最新の設定を反映)
+        props = {
+            "level-name": world, 
+            "white-list": "true", 
+            "online-mode": "true", 
+            "spawn-protection": "0",
+            "difficulty": "normal"
+        }
         with open("server.properties", "w") as f:
             for k, v in props.items(): f.write(f"{k}={v}\n")
         with open("eula.txt", "w") as f: f.write("eula=true")
 
-        # Javaパス検索
+        # Java 26 を最優先で検索
         java_cmd = "java"
-        paths = [r"C:\Program Files\Java\jdk-26\bin\java.exe", "/usr/bin/java"]
+        paths = [r"C:\Program Files\Java\jdk-26\bin\java.exe"]
         for p in paths:
             if os.path.exists(p): java_cmd = p; break
 
         def run():
             try:
-                self.log(f"マイクラサーバー起動中... ({world})")
-                # 起動時のメモリをActionsに合わせて最適化 (7GB)
+                self.log(f"マイクラサーバー起動準備中... (ワールド: {world})")
                 self.server_process = subprocess.Popen(
                     [java_cmd, "-Xmx7G", "-Xms7G", "-jar", "server.jar", "nogui"],
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE,
                     text=True, encoding='utf-8', errors='replace', bufsize=1
                 )
                 self.current_running_world = world
-                
                 for line in self.server_process.stdout:
                     clean_line = line.strip()
                     self.log(clean_line, "SERVER")
                     
-                    # 全員自動管理者(OP)化
+                    # 参加者を自動で管理者(OP)にする
                     if "joined the game" in clean_line:
                         match = re.search(r'(\w+) joined the game', clean_line)
                         if match:
                             time.sleep(2)
                             self.send_command(f"op {match.group(1)}")
                     
-                    # 起動完了後の自動設定（タイミングを遅らせて確実に実行）
+                    # 起動完了後の自動設定
                     if "Done" in clean_line:
-                        def delayed_commands():
-                            time.sleep(10) # 完全に落ち着くまで10秒待機
-                            self.send_command("gamerule keepInventory true")
-                            self.send_command("gamerule mobGriefing true")
-                            self.log(">>> 自動初期設定を完了しました。", "SYSTEM")
-                        threading.Thread(target=delayed_commands, daemon=True).start()
+                        time.sleep(5)
+                        self.send_command("gamerule keepInventory true")
 
             except Exception as e: self.log(f"エラー: {e}", "ERROR")
             self.server_process = None
@@ -110,20 +118,27 @@ class MinecraftRealmsPro:
 
         threading.Thread(target=run, daemon=True).start()
 
-    # (setup_gui, load_world_list などの残りのメソッドは前回と同じため省略)
-    # --- 前回から変更なし ---
+    # --- GUI構築 (PC用) ---
     def setup_gui(self):
         self.root = ctk.CTk()
         self.root.title("Minecraft Server Manager Pro")
         self.root.geometry("1100x800")
         self.root.grid_columnconfigure(0, weight=1); self.root.grid_columnconfigure(1, weight=2)
+        self.root.grid_rowconfigure(0, weight=1)
+
         left = ctk.CTkFrame(self.root); left.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
         self.world_list_frame = ctk.CTkScrollableFrame(left, label_text="ワールドリスト"); self.world_list_frame.pack(expand=True, fill="both", pady=5)
-        self.world_name_entry = ctk.CTkEntry(left); self.world_name_entry.insert(0, self.world_name_val); self.world_name_entry.pack(fill="x", padx=10)
+
+        self.add_label(left, "ワールド設定")
+        self.world_name_entry = self.add_entry(left, self.world_name_val)
+        
         ctk.CTkButton(left, text="サーバー開始", fg_color="green", command=self.start_server).pack(pady=10, fill="x")
+        ctk.CTkButton(left, text="playit.gg 管理画面", command=lambda: webbrowser.open("https://playit.gg/login")).pack(fill="x")
+
         self.console_box = ctk.CTkTextbox(self.root, fg_color="black", text_color="#00FF00", font=("Consolas", 12))
         self.console_box.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
 
+    # --- データ管理系 ---
     def load_world_list(self):
         if os.path.exists(CONFIG_FILE):
             try:
@@ -147,7 +162,8 @@ class MinecraftRealmsPro:
         for world in self.worlds:
             frame = ctk.CTkFrame(self.world_list_frame); frame.pack(fill="x", pady=2)
             ctk.CTkLabel(frame, text="●", text_color="#55FF55").pack(side="left", padx=5)
-            ctk.CTkButton(frame, text=world, fg_color="transparent", anchor="w", command=lambda w=world: self.select_world(w)).pack(side="left", expand=True, fill="x")
+            ctk.CTkButton(frame, text=world, fg_color="transparent", anchor="w", 
+                         command=lambda w=world: self.select_world(w)).pack(side="left", expand=True, fill="x")
 
     def select_world(self, name):
         if hasattr(self, "world_name_entry"):
@@ -157,8 +173,10 @@ class MinecraftRealmsPro:
 # 3. 実行メイン
 # ==========================================
 if __name__ == "__main__":
+    # --headless 引数があるか、GUIが使えない環境ならHeadless
     is_headless = "--headless" in sys.argv or not GUI_AVAILABLE
     manager = MinecraftRealmsPro(headless=is_headless)
+    
     if is_headless:
         manager.start_server()
         try:
