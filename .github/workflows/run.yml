@@ -14,11 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Java 21 セットアップ
+      - name: 最新のJava 26をセットアップ
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
-          distribution: 'temurin'
+          java-version: '26'
+          distribution: 'oracle'
 
       - name: Pythonライブラリのインストール
         run: pip install discord.py customtkinter pystray pillow requests
@@ -28,23 +28,30 @@ jobs:
           curl -SsL -o playit https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64
           chmod +x playit
 
-      - name: server.jarの最新版を自動ダウンロード
+      - name: server.jarの安定版を自動ダウンロード
         run: |
-          # Pythonを使ってマイクラ公式の最新版URLを自動取得してダウンロードします
+          # Pythonを使って「安定版（リリース版）」だけを確実に選んでダウンロードします
           python3 -c '
           import requests
-          import os
-          # バージョン情報のマニフェストを取得
           manifest = requests.get("https://launchermeta.mojang.com/mc/game/version_manifest.json").json()
-          latest_version_url = manifest["versions"][0]["url"]
-          # 最新バージョンの詳細データを取得
-          version_data = requests.get(latest_version_url).json()
+          
+          # 最新の「安定版」のバージョン番号を取得
+          release_id = manifest["latest"]["release"]
+          print(f"Latest stable release is: {release_id}")
+          
+          # そのバージョンのダウンロードURLを探す
+          for v in manifest["versions"]:
+              if v["id"] == release_id:
+                  url = v["url"]
+                  break
+                  
+          version_data = requests.get(url).json()
           server_url = version_data["downloads"]["server"]["url"]
           print(f"Downloading from: {server_url}")
+          
           # ダウンロード実行
-          response = requests.get(server_url)
           with open("server.jar", "wb") as f:
-              f.write(response.content)
+              f.write(requests.get(server_url).content)
           '
           # ファイルサイズの確認
           ls -lh server.jar
