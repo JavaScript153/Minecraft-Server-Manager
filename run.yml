@@ -1,0 +1,55 @@
+name: Minecraft_24-7_Final
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Java 21 セットアップ
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Pythonライブラリのインストール
+        run: pip install discord.py customtkinter pystray pillow
+
+      - name: playit.ggのダウンロード
+        run: |
+          curl -SsL -o playit https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64
+          chmod +x playit
+
+      - name: server.jarのダウンロード
+        run: |
+          # 1.21.1 公式サーバーの直接リンク（最新に更新）
+          curl -L -o server.jar https://piston-data.mojang.com/v1/objects/450698d186214088031d4576307137b019da562c/server.jar
+          # ファイルサイズが正常か確認 (約60MB以上あるはず)
+          ls -lh server.jar
+
+      - name: サーバー実行
+        env:
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          PLAYIT_SECRET: ${{ secrets.PLAYIT_SECRET }}
+        run: |
+          echo "eula=true" > eula.txt
+          ./playit --secret "$PLAYIT_SECRET" > /dev/null 2>&1 &
+          sleep 5
+          python3 -u server.py --headless
+
+      - name: ワールドの自動保存
+        if: always()
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "自動保存: $(date)" || echo "変更なし"
+          git push
