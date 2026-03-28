@@ -7,7 +7,7 @@ import re
 import time
 import webbrowser
 
-# --- GUIライブラリの読み込み (環境に合わせて柔軟に対応) ---
+# --- GUIライブラリの読み込みチェック ---
 try:
     import tkinter as tk
     import customtkinter as ctk
@@ -16,7 +16,7 @@ try:
 except:
     GUI_AVAILABLE = False
 
-# --- 設定の読み込み ---
+# --- 設定読み込み ---
 PLAYIT_SECRET = os.getenv("PLAYIT_SECRET", "").strip()
 CONFIG_FILE = "servers_list.json"
 
@@ -25,19 +25,19 @@ class MinecraftRealmsPro:
         self.server_process = None
         self.current_running_world = None
         self.headless = headless
+        self.world_name_val = "KUROiworld" # デフォルトのワールド名
         
-        # データの初期化
+        # データの読み込み
         self.worlds = self.load_world_list()
         self.auto_detect_existing_folders()
 
         if not headless and GUI_AVAILABLE:
             self.setup_gui()
             self.refresh_world_list_ui()
-            self.after(2000, self.refresh_member_lists)
         else:
-            print(">>> [INFO] Headless Mode: 画面なしでサーバーを起動します...")
+            print(">>> [INFO] Headless Mode: サーバー自動起動を開始します...")
 
-    # --- 便利メソッド ---
+    # --- GUI用便利メソッド ---
     def add_label(self, parent, text):
         lbl = ctk.CTkLabel(parent, text=text, font=("MS Gothic", 12, "bold"))
         lbl.pack(anchor="w", pady=(10, 0))
@@ -45,9 +45,6 @@ class MinecraftRealmsPro:
 
     def add_entry(self, parent, default):
         e = ctk.CTkEntry(parent); e.insert(0, default); e.pack(pady=5, fill="x"); return e
-
-    def add_switch(self, parent, text, default):
-        s = ctk.CTkSwitch(parent, text=text); (s.select() if default else s.deselect()); s.pack(pady=8, anchor="w"); return s
 
     def log(self, msg, tag="INFO"):
         print(f"[{tag}] {msg}", flush=True)
@@ -69,23 +66,30 @@ class MinecraftRealmsPro:
     # --- サーバー起動ロジック ---
     def start_server(self):
         if self.server_process: return
-        world = self.world_name_entry.get() if not self.headless else "KUROiworld"
+        # GUIなら入力された名前、Headlessならデフォルト名
+        world = self.world_name_entry.get() if not self.headless else self.world_name_val
         
-        # 設定ファイル作成
-        props = {"level-name": world, "white-list": "true", "online-mode": "true", "spawn-protection": "0"}
+        # 設定ファイル作成 (常に最新の設定を反映)
+        props = {
+            "level-name": world, 
+            "white-list": "true", 
+            "online-mode": "true", 
+            "spawn-protection": "0",
+            "difficulty": "normal"
+        }
         with open("server.properties", "w") as f:
             for k, v in props.items(): f.write(f"{k}={v}\n")
         with open("eula.txt", "w") as f: f.write("eula=true")
 
-        # Javaパス検索
+        # Java 26 を最優先で検索
         java_cmd = "java"
-        paths = [r"C:\Program Files\Java\jdk-26\bin\java.exe", "/usr/bin/java"]
+        paths = [r"C:\Program Files\Java\jdk-26\bin\java.exe"]
         for p in paths:
             if os.path.exists(p): java_cmd = p; break
 
         def run():
             try:
-                self.log(f"マイクラサーバーを起動中: {world}")
+                self.log(f"マイクラサーバー起動準備中... (ワールド: {world})")
                 self.server_process = subprocess.Popen(
                     [java_cmd, "-Xmx7G", "-Xms7G", "-jar", "server.jar", "nogui"],
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE,
@@ -96,18 +100,19 @@ class MinecraftRealmsPro:
                     clean_line = line.strip()
                     self.log(clean_line, "SERVER")
                     
+                    # 参加者を自動で管理者(OP)にする
                     if "joined the game" in clean_line:
                         match = re.search(r'(\w+) joined the game', clean_line)
                         if match:
                             time.sleep(2)
                             self.send_command(f"op {match.group(1)}")
                     
+                    # 起動完了後の自動設定
                     if "Done" in clean_line:
-                        time.sleep(3)
+                        time.sleep(5)
                         self.send_command("gamerule keepInventory true")
-                        if not self.headless: self.after(0, self.refresh_member_lists)
 
-            except Exception as e: self.log(f"起動エラー: {e}", "ERROR")
+            except Exception as e: self.log(f"エラー: {e}", "ERROR")
             self.server_process = None
             self.current_running_world = None
 
@@ -116,36 +121,30 @@ class MinecraftRealmsPro:
     # --- GUI構築 (PC用) ---
     def setup_gui(self):
         self.root = ctk.CTk()
-        self.root.title("Minecraft Server Manager Pro (No Bot)")
+        self.root.title("Minecraft Server Manager Pro")
         self.root.geometry("1100x800")
-        self.root.grid_columnconfigure(0, weight=1); self.root.grid_columnconfigure(1, weight=2); self.root.grid_columnconfigure(2, weight=2)
+        self.root.grid_columnconfigure(0, weight=1); self.root.grid_columnconfigure(1, weight=2)
         self.root.grid_rowconfigure(0, weight=1)
 
-        sidebar = ctk.CTkFrame(self.root); sidebar.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
-        self.world_list_frame = ctk.CTkScrollableFrame(sidebar, label_text="ワールドリスト"); self.world_list_frame.pack(expand=True, fill="both", padx=5, pady=5)
+        left = ctk.CTkFrame(self.root); left.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        self.world_list_frame = ctk.CTkScrollableFrame(left, label_text="ワールドリスト"); self.world_list_frame.pack(expand=True, fill="both", pady=5)
 
-        settings = ctk.CTkFrame(self.root); settings.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
-        self.tabview = ctk.CTkTabview(settings); self.tabview.pack(expand=True, fill="both")
-        self.tab_game = self.tabview.add("設定"); self.tab_players = self.tabview.add("メンバー")
+        self.add_label(left, "ワールド設定")
+        self.world_name_entry = self.add_entry(left, self.world_name_val)
         
-        self.world_name_entry = self.add_entry(self.tab_game, "KUROiworld")
-        ctk.CTkButton(self.tab_game, text="サーバー開始", fg_color="green", command=self.start_server).pack(pady=10, fill="x")
-        ctk.CTkButton(self.tab_game, text="playit.gg 管理画面", command=lambda: webbrowser.open("https://playit.gg/login")).pack(pady=5, fill="x")
+        ctk.CTkButton(left, text="サーバー開始", fg_color="green", command=self.start_server).pack(pady=10, fill="x")
+        ctk.CTkButton(left, text="playit.gg 管理画面", command=lambda: webbrowser.open("https://playit.gg/login")).pack(fill="x")
 
-        self.invite_entry = ctk.CTkEntry(self.tab_players, placeholder_text="招待ID"); self.invite_entry.pack(fill="x", pady=5)
-        ctk.CTkButton(self.tab_players, text="招待追加", command=lambda: self.send_command(f"whitelist add {self.invite_entry.get()}")).pack(fill="x")
-        self.whitelist_scroll = ctk.CTkScrollableFrame(self.tab_players, height=300, label_text="招待済み"); self.whitelist_scroll.pack(fill="x", pady=5)
+        self.console_box = ctk.CTkTextbox(self.root, fg_color="black", text_color="#00FF00", font=("Consolas", 12))
+        self.console_box.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
 
-        right = ctk.CTkFrame(self.root); right.grid(row=0, column=2, sticky="nsew", padx=5, pady=5)
-        self.console_box = ctk.CTkTextbox(right, fg_color="black", text_color="#00FF00", font=("Consolas", 12))
-        self.console_box.pack(expand=True, fill="both", padx=5, pady=5)
-
+    # --- データ管理系 ---
     def load_world_list(self):
         if os.path.exists(CONFIG_FILE):
             try:
                 with open(CONFIG_FILE, "r") as f: return json.load(f)
-            except: return ["KUROiworld"]
-        return ["KUROiworld"]
+            except: return [self.world_name_val]
+        return [self.world_name_val]
 
     def save_world_list(self):
         with open(CONFIG_FILE, "w") as f: json.dump(self.worlds, f)
@@ -154,8 +153,8 @@ class MinecraftRealmsPro:
         exclude = ["libraries", "logs", "versions", "__pycache__"]
         for item in os.listdir('.'):
             if os.path.isdir(item) and item not in exclude:
-                if os.path.exists(os.path.join(item, "level.dat")):
-                    if item not in self.worlds: self.worlds.append(item)
+                if os.path.exists(os.path.join(item, "level.dat")) and item not in self.worlds:
+                    self.worlds.append(item)
         self.save_world_list()
 
     def refresh_world_list_ui(self):
@@ -163,27 +162,21 @@ class MinecraftRealmsPro:
         for world in self.worlds:
             frame = ctk.CTkFrame(self.world_list_frame); frame.pack(fill="x", pady=2)
             ctk.CTkLabel(frame, text="●", text_color="#55FF55").pack(side="left", padx=5)
-            ctk.CTkButton(frame, text=world, fg_color="transparent", anchor="w", command=lambda w=world: self.select_world(w)).pack(side="left", expand=True, fill="x")
+            ctk.CTkButton(frame, text=world, fg_color="transparent", anchor="w", 
+                         command=lambda w=world: self.select_world(w)).pack(side="left", expand=True, fill="x")
 
     def select_world(self, name):
         if hasattr(self, "world_name_entry"):
             self.world_name_entry.delete(0, "end"); self.world_name_entry.insert(0, name)
 
-    def refresh_member_lists(self):
-        for w in self.whitelist_scroll.winfo_children(): w.destroy()
-        if os.path.exists("whitelist.json"):
-            try:
-                with open("whitelist.json", "r") as f:
-                    for p in json.load(f): ctk.CTkLabel(self.whitelist_scroll, text=p['name'], anchor="w").pack(fill="x", padx=10)
-            except: pass
-
-    def on_closing(self):
-        if self.server_process: self.server_process.terminate()
-        if hasattr(self, "root"): self.root.destroy()
-
+# ==========================================
+# 3. 実行メイン
+# ==========================================
 if __name__ == "__main__":
+    # --headless 引数があるか、GUIが使えない環境ならHeadless
     is_headless = "--headless" in sys.argv or not GUI_AVAILABLE
     manager = MinecraftRealmsPro(headless=is_headless)
+    
     if is_headless:
         manager.start_server()
         try:
