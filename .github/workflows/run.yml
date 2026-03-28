@@ -1,4 +1,4 @@
-name: Minecraft_24-7_Final
+name: Minecraft_24-7_NoBot
 
 on:
   workflow_dispatch:
@@ -28,21 +28,29 @@ jobs:
           curl -SsL -o playit https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64
           chmod +x playit
 
-      - name: server.jarのダウンロード
+      - name: server.jarの確実なダウンロード
         run: |
-          # 1.21.1 公式サーバーの直接リンク（最新に更新）
-          curl -L -o server.jar https://piston-data.mojang.com/v1/objects/450698d186214088031d4576307137b019da562c/server.jar
-          # ファイルサイズが正常か確認 (約60MB以上あるはず)
-          ls -lh server.jar
+          # 1.21.1 のリンク（もしリンクが切れていたら、最新の公式リンクをここに貼ってください）
+          URL="https://piston-data.mojang.com/v1/objects/450698d186214088031d4576307137b019da562c/server.jar"
+          
+          # リトライ機能付きでダウンロード
+          curl -L --retry 5 --retry-delay 5 -o server.jar "$URL"
+          
+          # ファイルサイズの確認 (0バイトならエラーにする)
+          SIZE=$(stat -c%s "server.jar")
+          if [ "$SIZE" -lt 1000000 ]; then
+            echo "Error: server.jar is too small ($SIZE bytes). Download failed!"
+            exit 1
+          fi
+          echo "Success: server.jar downloaded ($SIZE bytes)."
 
       - name: サーバー実行
         env:
-          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
           PLAYIT_SECRET: ${{ secrets.PLAYIT_SECRET }}
         run: |
           echo "eula=true" > eula.txt
           ./playit --secret "$PLAYIT_SECRET" > /dev/null 2>&1 &
-          sleep 5
+          sleep 10
           python3 -u server.py --headless
 
       - name: ワールドの自動保存
