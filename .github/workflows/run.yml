@@ -21,28 +21,33 @@ jobs:
           distribution: 'temurin'
 
       - name: Pythonライブラリのインストール
-        run: pip install discord.py customtkinter pystray pillow
+        run: pip install discord.py customtkinter pystray pillow requests
 
-      - name: playit.ggのダウンロード
+      - name: playit.ggの準備
         run: |
           curl -SsL -o playit https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64
           chmod +x playit
 
-      - name: server.jarの確実なダウンロード
+      - name: server.jarの最新版を自動ダウンロード
         run: |
-          # 1.21.1 のリンク（もしリンクが切れていたら、最新の公式リンクをここに貼ってください）
-          URL="https://piston-data.mojang.com/v1/objects/450698d186214088031d4576307137b019da562c/server.jar"
-          
-          # リトライ機能付きでダウンロード
-          curl -L --retry 5 --retry-delay 5 -o server.jar "$URL"
-          
-          # ファイルサイズの確認 (0バイトならエラーにする)
-          SIZE=$(stat -c%s "server.jar")
-          if [ "$SIZE" -lt 1000000 ]; then
-            echo "Error: server.jar is too small ($SIZE bytes). Download failed!"
-            exit 1
-          fi
-          echo "Success: server.jar downloaded ($SIZE bytes)."
+          # Pythonを使ってマイクラ公式の最新版URLを自動取得してダウンロードします
+          python3 -c '
+          import requests
+          import os
+          # バージョン情報のマニフェストを取得
+          manifest = requests.get("https://launchermeta.mojang.com/mc/game/version_manifest.json").json()
+          latest_version_url = manifest["versions"][0]["url"]
+          # 最新バージョンの詳細データを取得
+          version_data = requests.get(latest_version_url).json()
+          server_url = version_data["downloads"]["server"]["url"]
+          print(f"Downloading from: {server_url}")
+          # ダウンロード実行
+          response = requests.get(server_url)
+          with open("server.jar", "wb") as f:
+              f.write(response.content)
+          '
+          # ファイルサイズの確認
+          ls -lh server.jar
 
       - name: サーバー実行
         env:
@@ -51,6 +56,7 @@ jobs:
           echo "eula=true" > eula.txt
           ./playit --secret "$PLAYIT_SECRET" > /dev/null 2>&1 &
           sleep 10
+          # リアルタイムログ出力を有効にして実行
           python3 -u server.py --headless
 
       - name: ワールドの自動保存
