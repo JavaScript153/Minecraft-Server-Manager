@@ -5,10 +5,9 @@ import threading
 import json
 import re
 import time
-import shutil
 import webbrowser
 
-# --- GUIライブラリの読み込み (VPS/GitHub環境では無視される) ---
+# --- GUIライブラリの読み込み (環境に合わせて柔軟に対応) ---
 try:
     import tkinter as tk
     import customtkinter as ctk
@@ -17,93 +16,41 @@ try:
 except:
     GUI_AVAILABLE = False
 
-# --- Discordライブラリの読み込み ---
-try:
-    import discord
-    from discord import app_commands
-    DISCORD_AVAILABLE = True
-except:
-    DISCORD_AVAILABLE = False
+# --- 設定の読み込み ---
+PLAYIT_SECRET = os.getenv("PLAYIT_SECRET", "").strip()
+CONFIG_FILE = "servers_list.json"
 
-# --- セキュリティ設定 (GitHub Secrets対応) ---
-# 環境変数から取得。なければ空文字（ローカル用）
-DISCORD_TOKEN = os.getenv("DISCORD_TOKEN", "")
-PLAYIT_SECRET = os.getenv("PLAYIT_SECRET", "")
-
-# ==========================================
-# 1. Discord Bot クラス
-# ==========================================
-if DISCORD_AVAILABLE:
-    class MyDiscordBot(discord.Client):
-        def __init__(self, manager):
-            intents = discord.Intents.default()
-            intents.message_content = True
-            super().__init__(intents=intents)
-            self.manager = manager
-            self.tree = app_commands.CommandTree(self)
-
-        async def setup_hook(self):
-            @self.tree.command(name="start", description="マイクラサーバーを起動します")
-            async def start(interaction: discord.Interaction):
-                if self.manager.server_process:
-                    await interaction.response.send_message("🟢 サーバーは既に稼働中です")
-                else:
-                    threading.Thread(target=self.manager.start_server).start()
-                    await interaction.response.send_message("🚀 サーバーの起動を開始しました")
-
-            @self.tree.command(name="stop", description="マイクラサーバーを停止します")
-            async def stop(interaction: discord.Interaction):
-                if self.manager.server_process:
-                    self.manager.send_command("stop")
-                    await interaction.response.send_message("🛑 停止コマンドを送信しました")
-                else:
-                    await interaction.response.send_message("❌ サーバーは動いていません")
-
-            @self.tree.command(name="status", description="状態を確認します")
-            async def status(interaction: discord.Interaction):
-                st = "稼働中 🟢" if self.manager.server_process else "停止中 🔴"
-                await interaction.response.send_message(f"📊 状態: {st}")
-            await self.tree.sync()
-
-# ==========================================
-# 2. メイン管理クラス (GUI & サーバー制御)
-# ==========================================
 class MinecraftRealmsPro:
     def __init__(self, headless=False):
         self.server_process = None
         self.current_running_world = None
-        self.config_file = "servers_list.json"
         self.headless = headless
         
-        # データの読み込み
+        # データの初期化
         self.worlds = self.load_world_list()
         self.auto_detect_existing_folders()
 
         if not headless and GUI_AVAILABLE:
             self.setup_gui()
+            self.refresh_world_list_ui()
+            self.after(2000, self.refresh_member_lists)
         else:
-            print(">>> Headless Mode: GUIなしで実行中...")
+            print(">>> [INFO] Headless Mode: 画面なしでサーバーを起動します...")
 
-    def load_world_list(self):
-        if os.path.exists(self.config_file):
-            try:
-                with open(self.config_file, "r") as f: return json.load(f)
-            except: return []
-        return ["KUROiworld"]
+    # --- 便利メソッド ---
+    def add_label(self, parent, text):
+        lbl = ctk.CTkLabel(parent, text=text, font=("MS Gothic", 12, "bold"))
+        lbl.pack(anchor="w", pady=(10, 0))
+        return lbl
 
-    def save_world_list(self):
-        with open(self.config_file, "w") as f: json.dump(self.worlds, f)
+    def add_entry(self, parent, default):
+        e = ctk.CTkEntry(parent); e.insert(0, default); e.pack(pady=5, fill="x"); return e
 
-    def auto_detect_existing_folders(self):
-        exclude = ["libraries", "logs", "versions", "__pycache__"]
-        for item in os.listdir('.'):
-            if os.path.isdir(item) and item not in exclude:
-                if os.path.exists(os.path.join(item, "level.dat")):
-                    if item not in self.worlds: self.worlds.append(item)
-        self.save_world_list()
+    def add_switch(self, parent, text, default):
+        s = ctk.CTkSwitch(parent, text=text); (s.select() if default else s.deselect()); s.pack(pady=8, anchor="w"); return s
 
     def log(self, msg, tag="INFO"):
-        print(f"[{tag}] {msg}")
+        print(f"[{tag}] {msg}", flush=True)
         if not self.headless and hasattr(self, "console_box"):
             def _gui_log():
                 self.console_box.configure(state="normal")
@@ -119,24 +66,18 @@ class MinecraftRealmsPro:
                 self.server_process.stdin.flush()
             except: pass
 
-    # --- サーバー起動の核心 ---
+    # --- サーバー起動ロジック ---
     def start_server(self):
         if self.server_process: return
+        world = self.world_name_entry.get() if not self.headless else "KUROiworld"
         
-        # ワールド名の決定 (GUIなら入力値、Headlessならリストの最初)
-        world = self.world_name_entry.get() if not self.headless else self.worlds[0]
-        self.log(f"サーバー開始準備: {world}")
-
-        # server.properties の作成
-        props = {
-            "level-name": world, "white-list": "true", "online-mode": "true",
-            "spawn-protection": "0", "max-players": "10", "motd": "24/7 Managed Server"
-        }
+        # 設定ファイル作成
+        props = {"level-name": world, "white-list": "true", "online-mode": "true", "spawn-protection": "0"}
         with open("server.properties", "w") as f:
             for k, v in props.items(): f.write(f"{k}={v}\n")
         with open("eula.txt", "w") as f: f.write("eula=true")
 
-        # Javaのパス検索
+        # Javaパス検索
         java_cmd = "java"
         paths = [r"C:\Program Files\Java\jdk-26\bin\java.exe", "/usr/bin/java"]
         for p in paths:
@@ -144,8 +85,9 @@ class MinecraftRealmsPro:
 
         def run():
             try:
+                self.log(f"マイクラサーバーを起動中: {world}")
                 self.server_process = subprocess.Popen(
-                    [java_cmd, "-Xmx6G", "-Xms6G", "-jar", "server.jar", "nogui"],
+                    [java_cmd, "-Xmx7G", "-Xms7G", "-jar", "server.jar", "nogui"],
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE,
                     text=True, encoding='utf-8', errors='replace', bufsize=1
                 )
@@ -154,86 +96,100 @@ class MinecraftRealmsPro:
                     clean_line = line.strip()
                     self.log(clean_line, "SERVER")
                     
-                    # 全員自動管理者(OP)化
                     if "joined the game" in clean_line:
-                        player = re.search(r'(\w+) joined the game', clean_line)
-                        if player:
+                        match = re.search(r'(\w+) joined the game', clean_line)
+                        if match:
                             time.sleep(2)
-                            self.send_command(f"op {player.group(1)}")
+                            self.send_command(f"op {match.group(1)}")
                     
-                    # 起動完了後の自動設定
                     if "Done" in clean_line:
                         time.sleep(3)
-                        # GUIがあればその設定、なければデフォルトtrue
-                        ki = "true" if self.headless or self.keep_inv_sw.get() else "false"
-                        self.send_command(f"gamerule keepInventory {ki}")
+                        self.send_command("gamerule keepInventory true")
+                        if not self.headless: self.after(0, self.refresh_member_lists)
 
-            except Exception as e: self.log(f"致命的なエラー: {e}", "ERROR")
+            except Exception as e: self.log(f"起動エラー: {e}", "ERROR")
             self.server_process = None
             self.current_running_world = None
-            self.log("サーバーが停止しました。")
 
         threading.Thread(target=run, daemon=True).start()
 
-    # --- GUI構築 (Windows専用) ---
+    # --- GUI構築 (PC用) ---
     def setup_gui(self):
         self.root = ctk.CTk()
-        self.root.title("Minecraft Realms Manager Pro")
+        self.root.title("Minecraft Server Manager Pro (No Bot)")
         self.root.geometry("1100x800")
-        
-        self.root.grid_columnconfigure(0, weight=1); self.root.grid_columnconfigure(1, weight=1)
+        self.root.grid_columnconfigure(0, weight=1); self.root.grid_columnconfigure(1, weight=2); self.root.grid_columnconfigure(2, weight=2)
         self.root.grid_rowconfigure(0, weight=1)
 
-        # 左側：設定
-        left = ctk.CTkFrame(self.root); left.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
-        ctk.CTkLabel(left, text="ワールド設定", font=("MS Gothic", 20)).pack(pady=10)
-        self.world_name_entry = ctk.CTkEntry(left, placeholder_text="ワールド名")
-        self.world_name_entry.insert(0, self.worlds[0]); self.world_name_entry.pack(fill="x", padx=10, pady=5)
-        
-        self.keep_inv_sw = ctk.CTkSwitch(left, text="アイテム保持 (keepInventory)"); self.keep_inv_sw.select(); self.keep_inv_sw.pack(pady=5)
-        
-        ctk.CTkButton(left, text="サーバーを開始", fg_color="green", command=self.start_server).pack(pady=20, fill="x", padx=10)
-        ctk.CTkButton(left, text="playit.gg ログイン", command=lambda: webbrowser.open("https://playit.gg/login")).pack(pady=5)
+        sidebar = ctk.CTkFrame(self.root); sidebar.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+        self.world_list_frame = ctk.CTkScrollableFrame(sidebar, label_text="ワールドリスト"); self.world_list_frame.pack(expand=True, fill="both", padx=5, pady=5)
 
-        # 右側：ログ
-        right = ctk.CTkFrame(self.root); right.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
+        settings = ctk.CTkFrame(self.root); settings.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
+        self.tabview = ctk.CTkTabview(settings); self.tabview.pack(expand=True, fill="both")
+        self.tab_game = self.tabview.add("設定"); self.tab_players = self.tabview.add("メンバー")
+        
+        self.world_name_entry = self.add_entry(self.tab_game, "KUROiworld")
+        ctk.CTkButton(self.tab_game, text="サーバー開始", fg_color="green", command=self.start_server).pack(pady=10, fill="x")
+        ctk.CTkButton(self.tab_game, text="playit.gg 管理画面", command=lambda: webbrowser.open("https://playit.gg/login")).pack(pady=5, fill="x")
+
+        self.invite_entry = ctk.CTkEntry(self.tab_players, placeholder_text="招待ID"); self.invite_entry.pack(fill="x", pady=5)
+        ctk.CTkButton(self.tab_players, text="招待追加", command=lambda: self.send_command(f"whitelist add {self.invite_entry.get()}")).pack(fill="x")
+        self.whitelist_scroll = ctk.CTkScrollableFrame(self.tab_players, height=300, label_text="招待済み"); self.whitelist_scroll.pack(fill="x", pady=5)
+
+        right = ctk.CTkFrame(self.root); right.grid(row=0, column=2, sticky="nsew", padx=5, pady=5)
         self.console_box = ctk.CTkTextbox(right, fg_color="black", text_color="#00FF00", font=("Consolas", 12))
         self.console_box.pack(expand=True, fill="both", padx=5, pady=5)
 
-        # Discord Bot 起動ボタン (GUI用)
-        self.token_entry = ctk.CTkEntry(left, placeholder_text="Discord Token (空ならSecretsを使用)", show="*")
-        self.token_entry.pack(pady=5, fill="x", padx=10)
-        ctk.CTkButton(left, text="Discord Bot 起動", command=self.manual_bot_start).pack(pady=5)
+    def load_world_list(self):
+        if os.path.exists(CONFIG_FILE):
+            try:
+                with open(CONFIG_FILE, "r") as f: return json.load(f)
+            except: return ["KUROiworld"]
+        return ["KUROiworld"]
 
-    def manual_bot_start(self):
-        token = self.token_entry.get() or DISCORD_TOKEN
-        if token and DISCORD_AVAILABLE:
-            threading.Thread(target=lambda: MyDiscordBot(self).run(token), daemon=True).start()
-            self.log("Discord Botを起動しました。")
+    def save_world_list(self):
+        with open(CONFIG_FILE, "w") as f: json.dump(self.worlds, f)
 
-# ==========================================
-# 3. 実行メイン
-# ==========================================
+    def auto_detect_existing_folders(self):
+        exclude = ["libraries", "logs", "versions", "__pycache__"]
+        for item in os.listdir('.'):
+            if os.path.isdir(item) and item not in exclude:
+                if os.path.exists(os.path.join(item, "level.dat")):
+                    if item not in self.worlds: self.worlds.append(item)
+        self.save_world_list()
+
+    def refresh_world_list_ui(self):
+        for widget in self.world_list_frame.winfo_children(): widget.destroy()
+        for world in self.worlds:
+            frame = ctk.CTkFrame(self.world_list_frame); frame.pack(fill="x", pady=2)
+            ctk.CTkLabel(frame, text="●", text_color="#55FF55").pack(side="left", padx=5)
+            ctk.CTkButton(frame, text=world, fg_color="transparent", anchor="w", command=lambda w=world: self.select_world(w)).pack(side="left", expand=True, fill="x")
+
+    def select_world(self, name):
+        if hasattr(self, "world_name_entry"):
+            self.world_name_entry.delete(0, "end"); self.world_name_entry.insert(0, name)
+
+    def refresh_member_lists(self):
+        for w in self.whitelist_scroll.winfo_children(): w.destroy()
+        if os.path.exists("whitelist.json"):
+            try:
+                with open("whitelist.json", "r") as f:
+                    for p in json.load(f): ctk.CTkLabel(self.whitelist_scroll, text=p['name'], anchor="w").pack(fill="x", padx=10)
+            except: pass
+
+    def on_closing(self):
+        if self.server_process: self.server_process.terminate()
+        if hasattr(self, "root"): self.root.destroy()
+
 if __name__ == "__main__":
-    # --headless 引数があるか、GUIが使えない環境ならHeadlessモード
     is_headless = "--headless" in sys.argv or not GUI_AVAILABLE
-    
     manager = MinecraftRealmsPro(headless=is_headless)
-    
     if is_headless:
-        # GitHub Actions用：自動でサーバーとボットを開始
-        if DISCORD_AVAILABLE and DISCORD_TOKEN:
-            threading.Thread(target=lambda: MyDiscordBot(manager).run(DISCORD_TOKEN), daemon=True).start()
-        
-        # サーバー本体を開始
         manager.start_server()
-        
-        # 6時間制限（Actions）のために待機。Ctrl+Cでも止まる
         try:
             while True: time.sleep(10)
         except KeyboardInterrupt:
-            print("Stopping server...")
             manager.send_command("stop")
-            time.sleep(10)
+            time.sleep(5)
     else:
         manager.root.mainloop()
