@@ -1,0 +1,16 @@
+*.jar
+*.exe
+/*/
+/world/
+/KUROiworld/
+server.properties
+whitelist.json
+ops.json
+usercache.json
+banned-ips.json
+banned-players.json
+servers_list.json
+eula.txt
+/logs/
+/crash-reports/
+__pycache__/

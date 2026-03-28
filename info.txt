@@ -1,0 +1,142 @@
+ワールド 'Kuroiworld' を選択。
+Starting net.minecraft.server.Main
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by com.sun.jna.Native in an unnamed module (file:/K:/Minecraft/server/libraries/net/java/dev/jna/jna/5.17.0/jna-5.17.0.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.joml.MemUtil$MemUtilUnsafe (file:/K:/Minecraft/server/libraries/org/joml/joml/1.10.8/joml-1.10.8.jar)
+WARNING: Please consider reporting this to the maintainers of class org.joml.MemUtil$MemUtilUnsafe
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+[09:51:00] [ServerMain/INFO]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, profilesHost=https://api.mojang.com, name=PROD]
+[09:51:01] [Worker-Main-8/INFO]: No existing world data, creating new world
+[09:51:02] [ServerMain/INFO]: Loaded 1515 recipes
+[09:51:02] [ServerMain/INFO]: Loaded 1617 advancements
+[09:51:02] [Server thread/INFO]: Starting minecraft server version 26.1
+[09:51:02] [Server thread/INFO]: Loading properties
+[09:51:02] [Server thread/INFO]: Default game type: SURVIVAL
+[09:51:02] [Server thread/INFO]: Generating keypair
+[09:51:02] [Server thread/INFO]: Starting Minecraft server on *:25565
+[09:51:02] [Server thread/INFO]: Preparing level "Kuroiworld"
+[09:51:02] [Server thread/INFO]: Selecting global world spawn...
+[09:51:04] [Server thread/INFO]: Loading 0 persistent chunks...
+[09:51:04] [Server thread/INFO]: Preparing spawn area: 100%
+[09:51:04] [Server thread/INFO]: Time elapsed: 1761 ms
+[09:51:04] [Server thread/INFO]: Done (1.986s)! For help, type "help"
+[09:51:04] [Server thread/INFO]: Saving chunks for level 'ServerLevel[Kuroiworld]'/minecraft:overworld
+[09:51:04] [Server thread/INFO]: Saving chunks for level 'ServerLevel[Kuroiworld]'/minecraft:the_nether
+[09:51:04] [Server thread/INFO]: Saving chunks for level 'ServerLevel[Kuroiworld]'/minecraft:the_end
+[09:51:04] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[09:51:04] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[09:51:04] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[09:51:04] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved
+[09:51:04] [Server thread/INFO]: An unexpected error occurred trying to execute that command
+[09:51:04] [Server thread/INFO]: Incorrect argument for command
+[09:51:04] [Server thread/INFO]: gamerule keepInventory false<--[HERE]
+[09:51:04] [Server thread/INFO]: Nothing changed. The player already is an operator
+[09:51:37] [Server thread/INFO]: Added KenshinKuroiwa to the whitelist
+[09:52:04] [Server thread/INFO]: Server empty for 60 seconds, pausing
+ワールド 'Kuroiworld' を選択。
+[09:52:36] [User Authenticator #1/INFO]: UUID of player System_Kenshin is af899947-66fc-4a96-89f2-432cf5ee9eaa
+[09:52:39] [Server thread/INFO]: System_Kenshin[/127.0.0.1:53801] logged in with entity id 61 at (7.5, 78.0, -4.5)
+[09:52:39] [Server thread/INFO]: System_Kenshin joined the game
+[09:54:44] [Server thread/INFO]: System_Kenshin lost connection: Disconnected
+[09:54:44] [Server thread/INFO]: System_Kenshin left the game
+>>> /stopを送信しました。
+[09:54:48] [Server thread/INFO]: Stopping the server
+[09:54:48] [Server thread/INFO]: Stopping server
+[09:54:48] [Server thread/INFO]: Saving players
+[09:54:48] [Server thread/INFO]: Saving worlds
+[09:54:48] [Server thread/INFO]: Saving chunks for level 'ServerLevel[Kuroiworld]'/minecraft:overworld
+[09:54:48] [Server thread/INFO]: Saving chunks for level 'ServerLevel[Kuroiworld]'/minecraft:the_nether
+[09:54:48] [Server thread/INFO]: Saving chunks for level 'ServerLevel[Kuroiworld]'/minecraft:the_end
+[09:54:48] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[09:54:48] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[09:54:48] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[09:54:48] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved
+Starting net.minecraft.server.Main
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by com.sun.jna.Native in an unnamed module (file:/K:/Minecraft/server/libraries/net/java/dev/jna/jna/5.17.0/jna-5.17.0.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.joml.MemUtil$MemUtilUnsafe (file:/K:/Minecraft/server/libraries/org/joml/joml/1.10.8/joml-1.10.8.jar)
+WARNING: Please consider reporting this to the maintainers of class org.joml.MemUtil$MemUtilUnsafe
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+[09:55:22] [ServerMain/INFO]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, profilesHost=https://api.mojang.com, name=PROD]
+[09:55:22] [Worker-Main-6/INFO]: No existing world data, creating new world
+[09:55:23] [ServerMain/INFO]: Loaded 1515 recipes
+[09:55:23] [ServerMain/INFO]: Loaded 1617 advancements
+[09:55:23] [Server thread/INFO]: Starting minecraft server version 26.1
+[09:55:23] [Server thread/INFO]: Loading properties
+[09:55:23] [Server thread/INFO]: Default game type: SURVIVAL
+[09:55:23] [Server thread/INFO]: Generating keypair
+[09:55:23] [Server thread/INFO]: Starting Minecraft server on *:25565
+[09:55:23] [Server thread/INFO]: Preparing level "Kuroiworld"
+[09:55:24] [Server thread/INFO]: Selecting global world spawn...
+[09:55:26] [Server thread/INFO]: Loading 0 persistent chunks...
+[09:55:26] [Server thread/INFO]: Preparing spawn area: 100%
+[09:55:26] [Server thread/INFO]: Time elapsed: 2400 ms
+[09:55:26] [Server thread/INFO]: Done (2.672s)! For help, type "help"
+[09:55:26] [Server thread/INFO]: Saving chunks for level 'ServerLevel[Kuroiworld]'/minecraft:overworld
+[09:55:26] [Server thread/INFO]: Saving chunks for level 'ServerLevel[Kuroiworld]'/minecraft:the_end
+[09:55:26] [Server thread/INFO]: Saving chunks for level 'ServerLevel[Kuroiworld]'/minecraft:the_nether
+[09:55:26] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[09:55:26] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[09:55:26] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[09:55:26] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved
+[09:55:26] [Server thread/INFO]: An unexpected error occurred trying to execute that command
+[09:55:26] [Server thread/INFO]: Incorrect argument for command
+[09:55:26] [Server thread/INFO]: gamerule keepInventory false<--[HERE]
+[09:55:26] [Server thread/INFO]: Nothing changed. The player already is an operator
+[09:55:30] [Server thread/INFO]: Player is already whitelisted
+[09:55:53] [Server thread/WARN]: Couldn't find profile with name: iwataro1286
+com.mojang.authlib.exceptions.MinecraftClientHttpException: Couldn't find any profile with name iwataro1286
+at com.mojang.authlib.minecraft.client.MinecraftClient.readInputStream(MinecraftClient.java:103)
+at com.mojang.authlib.minecraft.client.MinecraftClient.get(MinecraftClient.java:56)
+at com.mojang.authlib.yggdrasil.YggdrasilGameProfileRepository.findProfileByName(YggdrasilGameProfileRepository.java:110)
+at net.minecraft.server.players.CachedUserNameToIdResolver.lookupGameProfile(CachedUserNameToIdResolver.java:73)
+at net.minecraft.server.players.CachedUserNameToIdResolver.get(CachedUserNameToIdResolver.java:134)
+at net.minecraft.commands.arguments.GameProfileArgument.lambda$parse$0(GameProfileArgument.java:66)
+at net.minecraft.commands.arguments.GameProfileArgument.getGameProfiles(GameProfileArgument.java:32)
+at net.minecraft.server.commands.WhitelistCommand.lambda$register$5(WhitelistCommand.java:53)
+at com.mojang.brigadier.context.ContextChain.runExecutable(ContextChain.java:73)
+at net.minecraft.commands.execution.tasks.ExecuteCommand.execute(ExecuteCommand.java:29)
+at net.minecraft.commands.execution.tasks.ExecuteCommand.execute(ExecuteCommand.java:13)
+at net.minecraft.commands.execution.UnboundEntryAction.lambda$bind$0(UnboundEntryAction.java:8)
+at net.minecraft.commands.execution.CommandQueueEntry.execute(CommandQueueEntry.java:8)
+at net.minecraft.commands.execution.ExecutionContext.runCommandQueue(ExecutionContext.java:106)
+at net.minecraft.commands.Commands.executeCommandInContext(Commands.java:432)
+at net.minecraft.commands.Commands.performCommand(Commands.java:364)
+at net.minecraft.commands.Commands.performPrefixedCommand(Commands.java:350)
+at net.minecraft.server.dedicated.DedicatedServer.handleConsoleInputs(DedicatedServer.java:464)
+at net.minecraft.server.dedicated.DedicatedServer.tickConnection(DedicatedServer.java:454)
+at net.minecraft.server.MinecraftServer.tickChildren(MinecraftServer.java:1149)
+at net.minecraft.server.MinecraftServer.tickServer(MinecraftServer.java:1002)
+at net.minecraft.server.dedicated.DedicatedServer.tickServer(DedicatedServer.java:322)
+at net.minecraft.server.MinecraftServer.processPacketsAndTick(MinecraftServer.java:1035)
+at net.minecraft.server.MinecraftServer.runServer(MinecraftServer.java:774)
+at net.minecraft.server.MinecraftServer.lambda$spin$0(MinecraftServer.java:321)
+at java.base/java.lang.Thread.run(Thread.java:1516)
+[09:55:53] [Server thread/INFO]: That player does not exist
+[09:56:08] [Server thread/INFO]: Added iwataro to the whitelist
+[09:56:26] [Server thread/INFO]: Server empty for 60 seconds, pausing
+[09:57:46] [User Authenticator #1/INFO]: UUID of player System_Kenshin is af899947-66fc-4a96-89f2-432cf5ee9eaa
+[09:57:48] [Server thread/INFO]: System_Kenshin[/127.0.0.1:60196] logged in with entity id 13 at (4.5, 67.0, -8.5)
+[09:57:48] [Server thread/INFO]: System_Kenshin joined the game
+[09:57:57] [Server thread/INFO]: System_Kenshin lost connection: Disconnected
+[09:57:57] [Server thread/INFO]: System_Kenshin left the game
+[09:58:00] [User Authenticator #2/INFO]: UUID of player System_Kenshin is af899947-66fc-4a96-89f2-432cf5ee9eaa
+[09:58:00] [Server thread/INFO]: System_Kenshin[/127.0.0.1:60220] logged in with entity id 350 at (23.46342518021604, 76.0, -7.143006002351161)
+[09:58:00] [Server thread/INFO]: System_Kenshin joined the game
+[09:58:02] [Server thread/INFO]: System_Kenshin lost connection: Disconnected
+[09:58:02] [Server thread/INFO]: System_Kenshin left the game
+[09:59:02] [Server thread/INFO]: Server empty for 60 seconds, pausing
+[09:59:07] [User Authenticator #3/INFO]: UUID of player System_Kenshin is af899947-66fc-4a96-89f2-432cf5ee9eaa
+[09:59:07] [Server thread/INFO]: System_Kenshin[/127.0.0.1:57372] logged in with entity id 551 at (23.46342518021604, 76.0, -7.143006002351161)
+[09:59:07] [Server thread/INFO]: System_Kenshin joined the game
+[09:59:26] [Server thread/INFO]: System_Kenshin lost connection: Disconnected
+[09:59:26] [Server thread/INFO]: System_Kenshin left the game
+
