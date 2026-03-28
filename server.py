@@ -7,7 +7,7 @@ import re
 import time
 import webbrowser
 
-# --- GUIライブラリ ---
+# --- GUIライブラリの読み込み ---
 try:
     import tkinter as tk
     import customtkinter as ctk
@@ -36,7 +36,6 @@ class MinecraftRealmsPro:
             print(">>> [INFO] Headless Mode: 24時間稼働を開始します...")
 
     def log(self, msg, tag="INFO"):
-        # 標準出力へのフラッシュを強制してリアルタイム表示
         print(f"[{tag}] {msg}", flush=True)
         if not self.headless and hasattr(self, "console_box"):
             def _gui_log():
@@ -47,16 +46,14 @@ class MinecraftRealmsPro:
             self.root.after(0, _gui_log)
 
     def send_command(self, cmd):
-        """改行コード問題を解決する強化版コマンド送信"""
+        """改行コード問題を解決し、確実にコマンドを届ける"""
         if self.server_process and self.server_process.stdin:
             try:
-                # 1. 前後の空白を消す
-                # 2. Windows特有の \r を完全に消す
-                # 3. 最後に純粋な \n (Linux改行) を1つだけ付ける
+                # 前後の空白を消し、Windowsの改行(\r)を消して、Linuxの改行(\n)のみにする
                 clean_cmd = cmd.strip().replace('\r', '') + "\n"
                 self.server_process.stdin.write(clean_cmd)
                 self.server_process.stdin.flush()
-                self.log(f"コマンド送信: {cmd.strip()}", "SYSTEM")
+                self.log(f"コマンド送信成功: {cmd.strip()}", "SYSTEM")
             except Exception as e:
                 self.log(f"コマンド送信エラー: {e}", "ERROR")
 
@@ -64,12 +61,13 @@ class MinecraftRealmsPro:
         if self.server_process: return
         world = self.world_name_entry.get() if not self.headless else self.world_name_val
         
+        # 設定ファイル作成
         props = {"level-name": world, "white-list": "true", "online-mode": "true", "spawn-protection": "0"}
         with open("server.properties", "w") as f:
             for k, v in props.items(): f.write(f"{k}={v}\n")
         with open("eula.txt", "w") as f: f.write("eula=true")
 
-        # Javaパス（GitHub Actions環境を優先）
+        # Javaパス検索
         java_cmd = "java"
         paths = [r"C:\Program Files\Java\jdk-26\bin\java.exe", "/usr/bin/java"]
         for p in paths:
@@ -77,7 +75,7 @@ class MinecraftRealmsPro:
 
         def run():
             try:
-                self.log(f"サーバー起動中... ({world})")
+                self.log(f"マイクラサーバー起動開始... ({world})")
                 self.server_process = subprocess.Popen(
                     [java_cmd, "-Xmx7G", "-Xms7G", "-jar", "server.jar", "nogui"],
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE,
@@ -91,27 +89,27 @@ class MinecraftRealmsPro:
                     
                     # 参加時に管理者(OP)化
                     if "joined the game" in clean_line:
-                        player = re.search(r'(\w+) joined the game', clean_line)
-                        if player:
+                        match = re.search(r'(\w+) joined the game', clean_line)
+                        if match:
                             time.sleep(2)
-                            self.send_command(f"op {player.group(1)}")
+                            self.send_command(f"op {match.group(1)}")
                     
                     # 起動完了後に設定を適用
                     if "Done" in clean_line:
                         def apply_initial_settings():
-                            time.sleep(10) # 完全に落ち着くまで長めに待つ
-                            self.send_command("gamerule keepInventory true")
+                            time.sleep(10) # サーバーが落ち着くまで待機
+                            # ★ここで keepInventory を false (オフ) に設定します
+                            self.send_command("gamerule keepInventory false")
                             self.send_command("gamerule mobGriefing true")
-                            self.log(">>> 全ての初期設定を適用しました。", "SYSTEM")
+                            self.log(">>> 初期設定(アイテム保持:OFF)を適用しました。", "SYSTEM")
                         threading.Thread(target=apply_initial_settings, daemon=True).start()
 
-            except Exception as e: self.log(f"致命的エラー: {e}", "ERROR")
+            except Exception as e: self.log(f"エラー: {e}", "ERROR")
             self.server_process = None
             self.current_running_world = None
 
         threading.Thread(target=run, daemon=True).start()
 
-    # --- 以下、GUI等のパーツ (変更なし) ---
     def setup_gui(self):
         self.root = ctk.CTk()
         self.root.title("Minecraft Manager Pro")
