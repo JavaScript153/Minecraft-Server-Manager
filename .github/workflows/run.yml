@@ -25,20 +25,35 @@ jobs:
 
       - name: Server Download (1.21.1 Stable)
         run: |
-          # 1.21.1の安定版URLです
-          curl -L -o server.jar https://piston-data.mojang.com/v1/objects/450698d186214088031d4576307137b019da562c/server.jar
+          # 以前の壊れたファイルを削除
+          rm -f server.jar
+          
+          # 1.21.1 の公式URL
+          URL="https://piston-data.mojang.com/v1/objects/450698d186214088031d4576307137b019da562c/server.jar"
+          
+          # ブラウザのふりをして、リトライを繰り返しながらダウンロード
+          curl -A "Mozilla/5.0" -L --retry 5 --retry-delay 5 -o server.jar "$URL"
+          
+          # ファイルサイズの確認 (60MB以上あるかチェック)
+          SIZE=$(stat -c%s "server.jar")
+          if [ "$SIZE" -lt 10000000 ]; then
+            echo "Error: server.jar download failed or file is too small ($SIZE bytes)."
+            exit 1
+          fi
+          echo "Success: server.jar downloaded ($SIZE bytes)."
 
       - name: Start
         env:
           PLAYIT_SECRET: ${{ secrets.PLAYIT_SECRET }}
         run: |
-          # 1. playitを裏で起動し、ログを playit.log に保存
+          echo "eula=true" > eula.txt
+          # playitを裏で起動
           ./playit --secret "$PLAYIT_SECRET" > playit.log 2>&1 &
           
-          # 2. 10秒待機してトンネルを完全に繋ぐ
+          # トンネルが安定するまで少し待つ
           sleep 10
           
-          # 3. サーバー開始
+          # サーバー開始 (-u でログをリアルタイム表示)
           python3 -u server.py
 
       - name: Auto Save
