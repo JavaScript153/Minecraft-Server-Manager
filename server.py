@@ -1,36 +1,26 @@
-import sys, os, subprocess, threading, time, re
+import os, subprocess, threading, time, sys
 
-# あなたのマイクラID（管理者用）
+# 管理者ID（自分のマイクラ名に書き換えてください）
 MY_ID = "System_Kenshin"
 
-class MinecraftManager:
+class MinecraftRunner:
     def __init__(self):
-        self.server_process = None
-        # 自分のPCかGitHub Actionsかを判定
-        self.is_github = os.getenv("GITHUB_ACTIONS") == "true"
-        self.world_name = "KUROiworld"
+        self.proc = None
 
-    def log(self, msg):
-        print(f"[LOG] {msg}", flush=True)
-
-    def send_command(self, cmd):
-        if self.server_process and self.server_process.stdin:
-            try:
-                # 余計な文字を排除して送信
-                clean_cmd = cmd.strip().replace('\r', '') + "\n"
-                self.server_process.stdin.write(clean_cmd)
-                self.server_process.stdin.flush()
-            except: pass
+    def send(self, cmd):
+        if self.proc and self.proc.stdin:
+            self.proc.stdin.write(cmd.strip() + "\n")
+            self.proc.stdin.flush()
 
     def start(self):
-        # 1. サーバー設定を「GitHub Actions専用」に強制書き換え
-        # server-ipを空にすることで、内部ネットワークの制限を回避します
+        # 1. server.properties を強制設定
+        # server-ipを空欄に、ポートを25565に固定
         props = {
-            "level-name": self.world_name,
+            "level-name": "KUROiworld",
             "white-list": "true",
             "online-mode": "true",
-            "server-ip": "", 
             "server-port": "25565",
+            "server-ip": "0.0.0.0",
             "spawn-protection": "0",
             "pause-when-empty-automated": "false"
         }
@@ -38,40 +28,30 @@ class MinecraftManager:
             for k, v in props.items(): f.write(f"{k}={v}\n")
         with open("eula.txt", "w") as f: f.write("eula=true")
 
-        # 2. Javaの起動 (メモリを4GBに絞ってplayit用の余力を残す)
-        java_cmd = "java"
-        # 自分のPC(Windows)ならパスを探す
-        if os.name == 'nt' and os.path.exists(r"C:\Program Files\Java\jdk-26\bin\java.exe"):
-            java_cmd = r"C:\Program Files\Java\jdk-26\bin\java.exe"
+        # 2. サーバー起動（Java 26対応）
+        cmd = ["java", "-Xmx6G", "-Xms6G", "-jar", "server.jar", "nogui"]
+        print(f">>> 起動コマンド: {' '.join(cmd)}")
 
-        def run_server():
-            try:
-                self.log("マイクラサーバーを起動しています...")
-                self.server_process = subprocess.Popen(
-                    [java_cmd, "-Xmx4G", "-Xms4G", "-jar", "server.jar", "nogui"],
-                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE,
-                    text=True, encoding='utf-8', errors='replace', bufsize=1
-                )
+        def run():
+            self.proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
+                stdin=subprocess.PIPE, text=True, bufsize=1
+            )
+            for line in self.proc.stdout:
+                msg = line.strip()
+                print(f"[SERVER] {msg}", flush=True)
+                
+                if "Done" in msg:
+                    time.sleep(5)
+                    self.send(f"whitelist add {MY_ID}")
+                    self.send(f"op {MY_ID}")
+                    print(f">>> {MY_ID} を招待し、管理者にしました。")
 
-                for line in self.server_process.stdout:
-                    clean_line = line.strip()
-                    print(f"[SERVER] {clean_line}", flush=True)
-                    
-                    # 起動完了時に自分を招待
-                    if "Done" in clean_line:
-                        time.sleep(5)
-                        self.send_command(f"whitelist add {MY_ID}")
-                        self.send_command(f"op {MY_ID}")
-                        self.log(f"*** {MY_ID} を管理者として招待しました ***")
-
-            except Exception as e:
-                self.log(f"エラーが発生しました: {e}")
-
-        threading.Thread(target=run_server, daemon=True).start()
+        threading.Thread(target=run, daemon=True).start()
 
 if __name__ == "__main__":
-    manager = MinecraftManager()
-    manager.start()
-    # GitHub Actionsが終了しないように無限ループ
+    runner = MinecraftRunner()
+    runner.start()
+    # 6時間動き続けるためのループ
     while True:
         time.sleep(10)
