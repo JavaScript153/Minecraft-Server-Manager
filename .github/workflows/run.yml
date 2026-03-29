@@ -1,4 +1,4 @@
-name: Minecraft_Actions_24-7
+name: Minecraft_Final_Fix
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: write
 
 jobs:
-  minecraft:
+  run-server:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,33 +18,28 @@ jobs:
           java-version: '26'
           distribution: 'oracle'
 
-      - name: Playit Download
+      - name: Playit Setup
         run: |
           curl -SsL -o playit https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64
           chmod +x playit
 
-      - name: Server Jar Download
+      - name: Server Download (1.21.1 Stable)
         run: |
-          python3 -c '
-          import requests
-          m = requests.get("https://launchermeta.mojang.com/mc/game/version_manifest.json").json()
-          u = requests.get(next(v["url"] for v in m["versions"] if v["id"] == m["latest"]["release"])).json()["downloads"]["server"]["url"]
-          open("server.jar", "wb").write(requests.get(u).content)
-          '
+          # 1.21.1の安定版URLです
+          curl -L -o server.jar https://piston-data.mojang.com/v1/objects/450698d186214088031d4576307137b019da562c/server.jar
 
-      - name: Start EVERYTHING
+      - name: Start
         env:
           PLAYIT_SECRET: ${{ secrets.PLAYIT_SECRET }}
         run: |
-          # 1. まずplayitを完全に切り離して起動 (ここが重要！)
-          # ログを playit.log に保存し、裏側で走らせます
-          nohup ./playit --secret "$PLAYIT_SECRET" > playit.log 2>&1 &
+          # 1. playitを裏で起動し、ログを playit.log に保存
+          ./playit --secret "$PLAYIT_SECRET" > playit.log 2>&1 &
           
-          # 2. playitが準備できるまで少し待つ
+          # 2. 10秒待機してトンネルを完全に繋ぐ
           sleep 10
           
-          # 3. マイクラサーバーを起動
-          python3 -u server.py --headless
+          # 3. サーバー開始
+          python3 -u server.py
 
       - name: Auto Save
         if: always()
@@ -52,5 +47,5 @@ jobs:
           git config --global user.name "bot"
           git config --global user.email "bot@bot.com"
           git add .
-          git commit -m "ワールド自動保存" || echo "No changes"
+          git commit -m "World Save" || echo "No changes"
           git push
