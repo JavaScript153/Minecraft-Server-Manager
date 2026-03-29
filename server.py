@@ -1,6 +1,6 @@
-import os, subprocess, threading, time, sys
+import os, subprocess, threading, time, sys, re
 
-# 管理者ID（自分のマイクラ名に書き換えてください）
+# 管理者ID
 MY_ID = "System_Kenshin"
 
 class MinecraftRunner:
@@ -9,49 +9,48 @@ class MinecraftRunner:
 
     def send(self, cmd):
         if self.proc and self.proc.stdin:
-            self.proc.stdin.write(cmd.strip() + "\n")
-            self.proc.stdin.flush()
+            try:
+                self.proc.stdin.write(cmd.strip() + "\n")
+                self.proc.stdin.flush()
+            except: pass
 
     def start(self):
-        # 1. server.properties を強制設定
-        # server-ipを空欄に、ポートを25565に固定
+        # 1. 接続をplayitと確実に握手させる設定
         props = {
             "level-name": "KUROiworld",
             "white-list": "true",
             "online-mode": "true",
             "server-port": "25565",
-            "server-ip": "0.0.0.0",
+            "server-ip": "127.0.0.1", # playitと同じ内部IPに固定
             "spawn-protection": "0",
-            "pause-when-empty-automated": "false"
+            "pause-when-empty-automated": "false" # 自動停止をオフ
         }
         with open("server.properties", "w") as f:
             for k, v in props.items(): f.write(f"{k}={v}\n")
         with open("eula.txt", "w") as f: f.write("eula=true")
 
-        # 2. サーバー起動（Java 26対応）
-        cmd = ["java", "-Xmx6G", "-Xms6G", "-jar", "server.jar", "nogui"]
-        print(f">>> 起動コマンド: {' '.join(cmd)}")
-
+        # 2. サーバー起動
         def run():
-            self.proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
-                stdin=subprocess.PIPE, text=True, bufsize=1
-            )
-            for line in self.proc.stdout:
-                msg = line.strip()
-                print(f"[SERVER] {msg}", flush=True)
-                
-                if "Done" in msg:
-                    time.sleep(5)
-                    self.send(f"whitelist add {MY_ID}")
-                    self.send(f"op {MY_ID}")
-                    print(f">>> {MY_ID} を招待し、管理者にしました。")
+            try:
+                # メモリを4Gに抑えて安定させる
+                self.proc = subprocess.Popen(
+                    ["java", "-Xmx4G", "-Xms4G", "-jar", "server.jar", "nogui"],
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
+                    stdin=subprocess.PIPE, text=True, bufsize=1
+                )
+                for line in self.proc.stdout:
+                    msg = line.strip()
+                    print(f"[SERVER] {msg}", flush=True)
+                    if "Done" in msg:
+                        time.sleep(5)
+                        self.send(f"whitelist add {MY_ID}")
+                        self.send(f"op {MY_ID}")
+                        print(">>> サーバーが正常に準備できました")
+            except Exception as e: print(f"Error: {e}")
 
         threading.Thread(target=run, daemon=True).start()
 
 if __name__ == "__main__":
     runner = MinecraftRunner()
     runner.start()
-    # 6時間動き続けるためのループ
-    while True:
-        time.sleep(10)
+    while True: time.sleep(10)
