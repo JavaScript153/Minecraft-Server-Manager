@@ -18,45 +18,54 @@ jobs:
           java-version: '26'
           distribution: 'oracle'
 
+      - name: Pythonライブラリの準備
+        run: pip install requests
+
       - name: Playit Setup
         run: |
           curl -SsL -o playit https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64
           chmod +x playit
 
-      - name: Server Download (1.21.1 Stable)
+      - name: server.jarの最強ダウンロード (アクセス拒否回避版)
         run: |
-          # 以前の壊れたファイルを削除
-          rm -f server.jar
+          python3 -c '
+          import requests
+          # 1. バージョン一覧を取得
+          manifest = requests.get("https://launchermeta.mojang.com/mc/game/version_manifest.json").json()
+          latest_release = manifest["latest"]["release"]
+          print(f"Target Version: {latest_release}")
           
-          # 1.21.1 の公式URL
-          URL="https://piston-data.mojang.com/v1/objects/450698d186214088031d4576307137b019da562c/server.jar"
+          # 2. 最新安定版のURLを特定
+          version_url = next(v["url"] for v in manifest["versions"] if v["id"] == latest_release)
+          server_url = requests.get(version_url).json()["downloads"]["server"]["url"]
           
-          # ブラウザのふりをして、リトライを繰り返しながらダウンロード
-          curl -A "Mozilla/5.0" -L --retry 5 --retry-delay 5 -o server.jar "$URL"
+          # 3. ブラウザのふりをしてダウンロード
+          print(f"Downloading from official CDN...")
+          headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+          response = requests.get(server_url, headers=headers, stream=True)
           
-          # ファイルサイズの確認 (60MB以上あるかチェック)
-          SIZE=$(stat -c%s "server.jar")
-          if [ "$SIZE" -lt 10000000 ]; then
-            echo "Error: server.jar download failed or file is too small ($SIZE bytes)."
-            exit 1
-          fi
-          echo "Success: server.jar downloaded ($SIZE bytes)."
+          if response.status_code == 200:
+              with open("server.jar", "wb") as f:
+                  for chunk in response.iter_content(chunk_size=8192):
+                      f.write(chunk)
+              print("Download Complete!")
+          else:
+              print(f"Failed! Status Code: {response.status_code}")
+              exit(1)
+          '
+          # サイズを確認 (60MB前後なら成功)
+          ls -lh server.jar
 
       - name: Start
         env:
           PLAYIT_SECRET: ${{ secrets.PLAYIT_SECRET }}
         run: |
           echo "eula=true" > eula.txt
-          # playitを裏で起動
           ./playit --secret "$PLAYIT_SECRET" > playit.log 2>&1 &
-          
-          # トンネルが安定するまで少し待つ
           sleep 10
-          
-          # サーバー開始 (-u でログをリアルタイム表示)
           python3 -u server.py
 
-      - name: Auto Save
+      - name: World Save
         if: always()
         run: |
           git config --global user.name "bot"
