@@ -2,12 +2,10 @@ import sys
 import os
 import subprocess
 import threading
-import json
 import re
 import time
-import webbrowser
 
-# --- ライブラリ読み込み ---
+# --- GUIライブラリ ---
 try:
     import tkinter as tk
     import customtkinter as ctk
@@ -15,106 +13,92 @@ try:
 except:
     GUI_AVAILABLE = False
 
-# --- 設定 ---
-PLAYIT_SECRET = os.getenv("PLAYIT_SECRET", "").strip()
-CONFIG_FILE = "servers_list.json"
-# あなたのマイクラIDをここに書いておけば、GitHub側で自動的に許可されます
-MY_ID = "System_Kenshin" 
+# --- 設定（あなたのマイクラIDを入れてください） ---
+MY_ID = "System_Kenshin" # あなたのマイクラIDが違う場合はここを書き換えてください
 
 class MinecraftRealmsPro:
     def __init__(self, headless=False):
         self.server_process = None
-        self.current_running_world = None
         self.headless = headless
-        self.world_name_val = "KUROiworld"
-        
-        self.worlds = self.load_world_list()
-        self.auto_detect_existing_folders()
+        self.world_name = "KUROiworld"
 
         if not headless and GUI_AVAILABLE:
             self.setup_gui()
         else:
-            print(">>> [INFO] Headless Mode: 24時間稼働開始")
+            print(">>> [INFO] Headless Mode: 24時間稼働を開始します...")
 
-    def log(self, msg, tag="INFO"):
-        print(f"[{tag}] {msg}", flush=True)
+    def log(self, msg):
+        print(msg, flush=True)
         if not self.headless and hasattr(self, "console_box"):
-            def _gui_log():
-                self.console_box.configure(state="normal")
-                self.console_box.insert("end", f"[{tag}] {msg}\n")
-                self.console_box.see("end")
-                self.console_box.configure(state="disabled")
-            self.root.after(0, _gui_log)
+            self.console_box.insert("end", f"{msg}\n")
+            self.console_box.see("end")
 
     def send_command(self, cmd):
-        """改行コード問題を完全に排除してコマンド送信"""
         if self.server_process and self.server_process.stdin:
             try:
-                # \r を消し、純粋な \n だけを付けてバイト列で送る
-                clean_cmd = (cmd.strip().replace('\r', '') + "\n").encode('utf-8')
-                self.server_process.stdin.write(clean_cmd.decode('utf-8'))
+                # 余計な改行コードを除去して送信
+                self.server_process.stdin.write(cmd.strip() + "\n")
                 self.server_process.stdin.flush()
             except: pass
 
     def start_server(self):
         if self.server_process: return
-        world = self.world_name_val # Headless時は固定
         
-        # サーバー設定（ホワイトリストをオンにする）
+        # サーバー設定（常にホワイトリストを有効化）
         props = {
-            "level-name": world, "white-list": "true", "online-mode": "true",
-            "spawn-protection": "0", "difficulty": "normal", "max-players": "10"
+            "level-name": self.world_name, "white-list": "true", 
+            "online-mode": "true", "spawn-protection": "0"
         }
         with open("server.properties", "w") as f:
             for k, v in props.items(): f.write(f"{k}={v}\n")
         with open("eula.txt", "w") as f: f.write("eula=true")
 
-        java_cmd = "java" # GitHub側はこれでJava26が動く
-
         def run():
             try:
-                self.log(f"マイクラサーバー起動開始: {world}")
+                self.log(f">>> マイクラサーバーを起動します... ({self.world_name})")
                 self.server_process = subprocess.Popen(
-                    [java_cmd, "-Xmx7G", "-Xms7G", "-jar", "server.jar", "nogui"],
+                    ["java", "-Xmx7G", "-Xms7G", "-jar", "server.jar", "nogui"],
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE,
                     text=True, encoding='utf-8', errors='replace', bufsize=1
                 )
-                self.current_running_world = world
+                
                 for line in self.server_process.stdout:
                     clean_line = line.strip()
-                    self.log(clean_line, "SERVER")
+                    self.log(f"[SERVER] {clean_line}")
                     
-                    # 起動完了後の処理
+                    # あなたが入った時に自動で管理者にする
+                    if "joined the game" in clean_line:
+                        match = re.search(r'(\w+) joined the game', clean_line)
+                        if match:
+                            time.sleep(2)
+                            self.send_command(f"op {match.group(1)}")
+
+                    # 起動完了時に自分を招待＆管理者にする
                     if "Done" in clean_line:
                         time.sleep(5)
-                        # 【重要】自分を自動的に招待＆管理者にする
                         self.send_command(f"whitelist add {MY_ID}")
                         self.send_command(f"op {MY_ID}")
-                        self.send_command("gamerule keepInventory false")
-                        self.log(f">>> {MY_ID} を自動招待し、管理者に任命しました。", "SYSTEM")
+                        self.log(f">>> {MY_ID} を自動で招待リストに追加しました。")
 
-            except Exception as e: self.log(f"エラー: {e}", "ERROR")
+            except Exception as e: self.log(f">>> エラー: {e}")
             self.server_process = None
 
         threading.Thread(target=run, daemon=True).start()
 
     def setup_gui(self):
-        # (GUIのコードは今まで通りですが、GitHubで上書きするのでシンプルにします)
         self.root = ctk.CTk()
-        self.root.title("MC Manager Pro")
+        self.root.title("Minecraft Manager")
         self.console_box = ctk.CTkTextbox(self.root, width=800, height=500, fg_color="black", text_color="#00FF00")
         self.console_box.pack(padx=20, pady=20)
-        ctk.CTkButton(self.root, text="サーバー開始", command=self.start_server).pack(pady=10)
-
-    def load_world_list(self): return ["KUROiworld"]
-    def auto_detect_existing_folders(self): pass
-    def save_world_list(self): pass
+        ctk.CTkButton(self.root, text="開始", command=self.start_server).pack()
 
 if __name__ == "__main__":
     is_headless = "--headless" in sys.argv or not GUI_AVAILABLE
     manager = MinecraftRealmsPro(headless=is_headless)
     if is_headless:
         manager.start_server()
-        while True: time.sleep(10)
+        try:
+            while True: time.sleep(10)
+        except KeyboardInterrupt: pass
     else:
         manager.root.mainloop()
