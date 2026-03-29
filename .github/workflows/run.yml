@@ -11,65 +11,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Java 26
+      - name: Java 21
         uses: actions/setup-java@v4
         with:
-          java-version: '26'
-          distribution: 'oracle'
-
-      - name: Pythonライブラリの準備
+          java-version: '21'
+          distribution: 'temurin'
+      - name: Python Libs
         run: pip install requests
-
       - name: Playit Setup
         run: |
           curl -SsL -o playit https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64
           chmod +x playit
-
-      - name: server.jarの最強ダウンロード (アクセス拒否回避版)
+      - name: Server Download (1.21.1 Stable)
         run: |
+          # 1.21.1安定版をダウンロード
           python3 -c '
           import requests
-          # 1. バージョン一覧を取得
-          manifest = requests.get("https://launchermeta.mojang.com/mc/game/version_manifest.json").json()
-          latest_release = manifest["latest"]["release"]
-          print(f"Target Version: {latest_release}")
-          
-          # 2. 最新安定版のURLを特定
-          version_url = next(v["url"] for v in manifest["versions"] if v["id"] == latest_release)
-          server_url = requests.get(version_url).json()["downloads"]["server"]["url"]
-          
-          # 3. ブラウザのふりをしてダウンロード
-          print(f"Downloading from official CDN...")
-          headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-          response = requests.get(server_url, headers=headers, stream=True)
-          
-          if response.status_code == 200:
-              with open("server.jar", "wb") as f:
-                  for chunk in response.iter_content(chunk_size=8192):
-                      f.write(chunk)
-              print("Download Complete!")
-          else:
-              print(f"Failed! Status Code: {response.status_code}")
-              exit(1)
+          res = requests.get("https://piston-data.mojang.com/v1/objects/450698d186214088031d4576307137b019da562c/server.jar")
+          with open("server.jar", "wb") as f: f.write(res.content)
           '
-          # サイズを確認 (60MB前後なら成功)
-          ls -lh server.jar
-
       - name: Start
         env:
           PLAYIT_SECRET: ${{ secrets.PLAYIT_SECRET }}
         run: |
-          echo "eula=true" > eula.txt
           ./playit --secret "$PLAYIT_SECRET" > playit.log 2>&1 &
           sleep 10
           python3 -u server.py
-
-      - name: World Save
+      - name: Save
         if: always()
         run: |
           git config --global user.name "bot"
           git config --global user.email "bot@bot.com"
           git add .
-          git commit -m "World Save" || echo "No changes"
+          git commit -m "World Save" || echo ""
           git push
